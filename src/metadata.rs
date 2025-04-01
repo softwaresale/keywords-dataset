@@ -44,24 +44,24 @@ impl ArxivMetadata {
         self.id.as_ref()
     }
 
-    pub fn submitter(&self) -> &Option<String> {
-        &self.submitter
+    pub fn submitter(&self) -> Option<&String> {
+        self.submitter.as_ref()
     }
 
-    pub fn authors(&self) -> &Option<String> {
-        &self.authors
+    pub fn authors(&self) -> Option<&String> {
+        self.authors.as_ref()
     }
 
-    pub fn title(&self) -> &Option<String> {
-        &self.title
+    pub fn title(&self) -> Option<&String> {
+        self.title.as_ref()
     }
 
-    pub fn comments(&self) -> &Option<String> {
-        &self.comments
+    pub fn comments(&self) -> Option<&String> {
+        self.comments.as_ref()
     }
 
-    pub fn journal_ref(&self) -> &Option<String> {
-        &self.journal_ref
+    pub fn journal_ref(&self) -> Option<&String> {
+        self.journal_ref.as_ref()
     }
 
     pub fn doi(&self) -> Option<&String> {
@@ -72,8 +72,8 @@ impl ArxivMetadata {
         self.categories.as_ref()
     }
 
-    pub fn abstract_text(&self) -> &Option<String> {
-        &self.abstract_text
+    pub fn abstract_text(&self) -> Option<&String> {
+        self.abstract_text.as_ref()
     }
 
     pub fn versions(&self) -> &Vec<ArxivVersion> {
