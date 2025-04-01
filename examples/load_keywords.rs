@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
 use keyword_dataset_rs::err::{AppError, AppResult};
-use keyword_dataset_rs::keyword::{extract_keywords};
+use keyword_dataset_rs::content::keyword::{extract_keywords};
 
 fn main() -> AppResult<()> {
     let bytes = {

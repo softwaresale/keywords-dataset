@@ -21,6 +21,14 @@ impl ArxivVersion {
         
         &created_date > date
     }
+
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+
+    pub fn created(&self) -> &str {
+        &self.created
+    }
 }
 
 #[derive(Deserialize)]

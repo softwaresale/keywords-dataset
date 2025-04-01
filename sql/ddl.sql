@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS arxiv_version (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     arxiv_id TEXT NOT NULL,
     version TEXT,
-    CREATED TEXT,
+    created TEXT,
     FOREIGN KEY (arxiv_id) REFERENCES arxiv_metadata(id)
 );
 
