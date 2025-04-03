@@ -1,8 +1,8 @@
 pub mod pages;
 
-use crate::err::{AppError, AppResult};
+use crate::err::{AppResult};
 use crate::metadata::{ArxivMetadata, ArxivVersion};
-use rusqlite::{named_params, Connection, Transaction};
+use rusqlite::{named_params, Connection, Statement, Transaction};
 use std::path::Path;
 use crate::content::ArxivPaperContent;
 use crate::db::pages::QueryPage;
@@ -69,6 +69,7 @@ impl<'a> ArxivDBQueries<'a> {
             ":limit": page.limit,
             ":offset": page.offset,
         };
+        
         let ids = stmt
             .query_map(params, |row| row.get::<_, String>("id"))?
             .filter_map(|id| id.ok())
@@ -78,16 +79,33 @@ impl<'a> ArxivDBQueries<'a> {
     }
     
     pub fn sample_arxiv_ids(&self, count: u64) -> AppResult<Vec<String>> {
-        let mut stmt = self.conn.prepare(r"
+        let stmt = self.conn.prepare(r"
         SELECT id FROM arxiv_metadata ORDER BY random() LIMIT :limit
         ")?;
         
+        Self::map_id_query(stmt, count)
+    }
+    
+    pub fn sample_arxiv_ids_unprocessed(&self, count: u64) -> AppResult<Vec<String>> {
+        let stmt = self.conn.prepare(r"
+        WITH candidates AS (
+            SELECT id FROM arxiv_metadata WHERE NOT EXISTS (
+                SELECT 1 FROM extraction_result WHERE extraction_result.arxiv_id = arxiv_metadata.id 
+            )
+        )
+        SELECT id ORDER BY RANDOM() LIMIT :count
+        ")?;
+
+        Self::map_id_query(stmt, count)
+    }
+    
+    fn map_id_query(mut stmt: Statement, count: u64) -> AppResult<Vec<String>> {
         let params = named_params! { ":limit": count };
-        
+
         let ids = stmt.query_map(params, |row| row.get::<_, String>("id"))?
             .filter_map(|id| id.ok())
             .collect::<Vec<_>>();
-        
+
         Ok(ids)
     }
     

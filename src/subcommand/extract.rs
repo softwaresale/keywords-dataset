@@ -17,6 +17,23 @@ pub struct ExtractArgs {
     /// optionally provide how many papers you want to provide extraction for
     #[arg(short, long)]
     count: Option<u64>,
+    /// used in conjunction with count. If true, only sample from records without corresponding
+    /// extraction_result
+    #[arg(short, long, default_value_t = false)]
+    unique: bool,
+    /// how many threads are available. 0 will use available parallelism
+    #[arg(short = 'j', long, default_value_t = 0usize)]
+    parallelism: usize,
+}
+
+impl ExtractArgs {
+    pub fn parallelism(&self) -> usize {
+        if self.parallelism == 0 {
+            return std::thread::available_parallelism().unwrap().get();
+        }
+
+        self.parallelism
+    }
 }
 
 pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
@@ -31,7 +48,7 @@ pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
             return Err(err);
         }
     };
-    
+
     // execute the DDL and turn off synchronous
     db.execute_ddl()?;
     db.turn_off_synchronous()?;
@@ -50,12 +67,19 @@ pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
 
     let pool = threadpool::Builder::new()
         .thread_name("extractor-thread-".to_string())
-        .num_threads(std::thread::available_parallelism()?.get())
+        .num_threads(args.parallelism())
         .build();
     let extractor = Arc::new(ContentExtractor::new());
 
     if is_sample {
-        process_sample(&queries, extractor, pool, total_ids)?;
+        process_sample(
+            &queries,
+            extractor,
+            pool,
+            total_ids,
+            args.unique,
+            args.parallelism()
+        )?;
     } else {
         process_all(&queries, extractor, pool, total_ids)?;
     }
@@ -114,11 +138,18 @@ fn process_sample(
     queries: &ArxivDBQueries,
     extractor: Arc<ContentExtractor>,
     pool: ThreadPool,
-    sample_size: u64
+    sample_size: u64,
+    unique: bool,
+    batch_size: usize,
 ) -> AppResult<()> {
-    let ids = queries.sample_arxiv_ids(sample_size)?;
-
-    for batch in ids.chunks(10) {
+    let ids = if unique {
+        queries.sample_arxiv_ids_unprocessed(sample_size)
+    } else {
+        queries.sample_arxiv_ids(sample_size)
+    }?;
+    
+    // process ids in batches
+    for batch in ids.chunks(batch_size) {
         let id_batch = batch.to_vec();
         let results = extract_paper_contents(extractor.clone(), &pool, id_batch)?;
         for item in results {
