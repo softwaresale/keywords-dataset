@@ -1,15 +1,14 @@
-mod fetch;
-
 use log::debug;
 use crate::content::ArxivPaperContent;
 use crate::content::body::PaperBodyExtractor;
 use crate::content::keyword::KeywordExtractor;
-use crate::err::{AppError};
-use crate::extraction::fetch::fetch_paper_content;
+use crate::err::AppError;
+use crate::fetch::PaperDownloader;
 
 pub struct ContentExtractor {
     keyword_extractor: KeywordExtractor,
     paper_body_extractor: PaperBodyExtractor,
+    paper_downloader: PaperDownloader,
 }
 
 impl ContentExtractor {
@@ -17,20 +16,22 @@ impl ContentExtractor {
         Self {
             keyword_extractor: KeywordExtractor::new(),
             paper_body_extractor: PaperBodyExtractor::new(),
+            paper_downloader: PaperDownloader::new(),
         }
     }
 
     /// actually performs the relevant steps to fetch a paper and pull out content we want
     pub fn fetch_and_extract_content(&self, arxiv_id: String) -> ExtractResult<ArxivPaperContent> {
         // get the paper content
-        let content = fetch_paper_content(&arxiv_id)
+        let content = self.paper_downloader.fetch_paper_content(&arxiv_id)
             .map_err(error_mapper(&arxiv_id))?;
         debug!("processing {}: fetched content", arxiv_id);
 
         self.extract_content(arxiv_id, &content)
     }
     
-    pub fn extract_content(&self, arxiv_id: String, content: &str) -> ExtractResult<ArxivPaperContent> {
+    pub fn extract_content<StrT: Into<String>>(&self, arxiv_id: StrT, content: &str) -> ExtractResult<ArxivPaperContent> {
+        let arxiv_id = arxiv_id.into();
         // get the keywords
         let keywords = self.keyword_extractor.extract_keywords(&content)
             .map_err(error_mapper(&arxiv_id))?;

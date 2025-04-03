@@ -4,9 +4,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("I/O error")]
+    #[error("I/O error: {0}")]
     IO(#[from] std::io::Error),
-    #[error("JSON (de)serialization error")]
+    #[error("JSON (de)serialization error: {0}")]
     JsonDeserialization(#[from] serde_json::Error),
     #[error("PDF extraction error: {0}")]
     PdfError(#[from] OutputError),
@@ -20,6 +20,10 @@ pub enum AppError {
     DbError(#[from] rusqlite::Error),
     #[error("Networking error: {0}")]
     NetworkError(#[from] ureq::Error),
+    #[error("Invalid HTTP response status code: {0}")]
+    HttpStatusError(ureq::http::status::StatusCode),
+    #[error("No GCS bucket object for arxiv id {0}")]
+    NoBucketObject(String),
     #[error("Other error: {0}")]
     Other(String),
 }
