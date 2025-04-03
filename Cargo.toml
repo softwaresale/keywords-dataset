@@ -18,3 +18,4 @@ rand = "0.9.0"
 rusqlite = { version = "0.31.0", features = ["chrono", "bundled"] }
 threadpool = "1.8.1"
 ureq = "3.0.10"
+indicatif = "0.17.11"

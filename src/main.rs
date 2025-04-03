@@ -5,6 +5,7 @@ use log::LevelFilter;
 use keyword_dataset_rs::err::AppError;
 use crate::subcommand::{AppSubCommands};
 use crate::subcommand::extract::extract_and_save_contents;
+use crate::subcommand::pull_data::pull_data;
 
 mod args;
 mod subcommand;
@@ -20,5 +21,6 @@ fn main() -> Result<(), AppError> {
     match args.command {
         AppSubCommands::DB(db_subcommand) => handle_db_command(db_subcommand),
         AppSubCommands::Extract(extract_args) => extract_and_save_contents(extract_args),
+        AppSubCommands::PullTraining(args) => pull_data(args),
     }
 }

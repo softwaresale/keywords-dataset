@@ -1,9 +1,11 @@
 use clap_derive::Subcommand;
 use crate::subcommand::db::DBSubCommands;
 use crate::subcommand::extract::ExtractArgs;
+use crate::subcommand::pull_data::PullDataArgs;
 
-pub mod db;
-pub mod extract;
+pub(crate) mod db;
+pub(crate) mod extract;
+pub(crate) mod pull_data;
 
 #[derive(Subcommand, Debug)]
 pub enum AppSubCommands {
@@ -12,4 +14,6 @@ pub enum AppSubCommands {
     DB(DBSubCommands),
     /// extract paper metadata
     Extract(ExtractArgs),
+    /// pulls training data from the DB
+    PullTraining(PullDataArgs),
 }

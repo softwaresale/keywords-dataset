@@ -5,3 +5,4 @@ pub mod db;
 pub mod content;
 pub mod extraction;
 mod fetch;
+pub mod training;

@@ -4,7 +4,7 @@ use crate::err::{AppResult};
 use crate::metadata::{ArxivMetadata, ArxivVersion};
 use rusqlite::{named_params, Connection, Statement, Transaction};
 use std::path::Path;
-use crate::content::ArxivPaperContent;
+use crate::content::{ArxivPaperContent, ArxivPaperContentEntity};
 use crate::db::pages::QueryPage;
 use crate::extraction::{ExtractError, ExtractResultRecord};
 
@@ -63,6 +63,34 @@ impl<'a> ArxivDBQueries<'a> {
         Ok(result)
     }
 
+    pub fn count_training_data(&self) -> AppResult<u64> {
+        self.conn.query_row(
+            r"SELECT COUNT(arxiv_id) FROM training_data",
+            [],
+            |row| row.get::<_, u64>(0)
+        )
+            .map_err(|err| err.into())
+    }
+    
+    pub fn select_training_data(&self, page: QueryPage) -> AppResult<Vec<ArxivPaperContentEntity>> {
+        let mut stmt = self.conn.prepare_cached(r"
+        SELECT * FROM training_data
+        LIMIT :limit
+        OFFSET :offset
+        ")?;
+        
+        let params = named_params! {
+            ":offset": page.offset,
+            ":limit": page.limit
+        };
+        
+        let entities = stmt.query_map(params, |row| ArxivPaperContentEntity::try_from(row))?
+            .filter_map(|entity| entity.ok())
+            .collect::<Vec<_>>();
+        
+        Ok(entities)
+    }
+    
     pub fn select_arxiv_ids(&self, page: QueryPage) -> AppResult<Vec<String>> {
         let mut stmt = self.conn.prepare("SELECT id FROM arxiv_metadata LIMIT :limit OFFSET :offset")?;
         let params = named_params! {
@@ -93,7 +121,7 @@ impl<'a> ArxivDBQueries<'a> {
                 SELECT 1 FROM extraction_result WHERE extraction_result.arxiv_id = arxiv_metadata.id 
             )
         )
-        SELECT id ORDER BY RANDOM() LIMIT :count
+        SELECT id FROM candidates ORDER BY RANDOM() LIMIT :limit
         ")?;
 
         Self::map_id_query(stmt, count)
