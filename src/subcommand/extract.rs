@@ -118,25 +118,27 @@ fn process_sample(
 ) -> AppResult<()> {
     let ids = queries.sample_arxiv_ids(sample_size)?;
 
-    let results = extract_paper_contents(extractor, &pool, ids)?;
-    
-    for item in results {
-        match item {
-            Ok(content) => {
-                info!("inserting content for {}", &content.id);
-                // update the status
-                queries.insert_extraction_result(&content.id, None)?;
-                // insert the content
-                queries.update_keywords_and_content(content)?;
-            }
-            Err(err) => {
-                error!("error while extracting content from {}: {}", err.id(), err.app_err());
-                // just log that we had some kind of error
-                queries.insert_extraction_result("", Some(err))?;
+    for batch in ids.chunks(10) {
+        let id_batch = batch.to_vec();
+        let results = extract_paper_contents(extractor.clone(), &pool, id_batch)?;
+        for item in results {
+            match item {
+                Ok(content) => {
+                    info!("inserting content for {}", &content.id);
+                    // update the status
+                    queries.insert_extraction_result(&content.id, None)?;
+                    // insert the content
+                    queries.update_keywords_and_content(content)?;
+                }
+                Err(err) => {
+                    error!("error while extracting content from {}: {}", err.id(), err.app_err());
+                    // just log that we had some kind of error
+                    queries.insert_extraction_result("", Some(err))?;
+                }
             }
         }
     }
-    
+
     Ok(())
 }
 
