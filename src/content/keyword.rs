@@ -8,6 +8,7 @@ pub struct KeywordExtractor {
     intro_header: Regex,
     small_extractor: Regex,
     index_terms: Regex,
+    index_terms_dot: Regex,
 }
 
 impl KeywordExtractor {
@@ -16,15 +17,17 @@ impl KeywordExtractor {
             keywords_header: Regex::new(r"\n\n *K[eE][yY][wW][oO][rR][dD][sS] *\n\n").unwrap(),
             intro_header: intro_header_regex_factory(),
             small_extractor: Regex::new(r"[Kk]eywords:?").unwrap(),
-            index_terms: Regex::new(r"Index Terms—").unwrap()
+            index_terms: Regex::new(r"Index [tT]erms?").unwrap(),
+            index_terms_dot: Regex::new(r"Index [tT]erms?([^.]+).").unwrap()
         }
     }
 
     pub fn extract_keywords(&self, contents: &str) -> AppResult<Vec<String>> {
         // try each different approach
         self.extract_keywords_headers(contents)
-            .or_else(|_| self.extract_keywords_headers_index_terms(contents))
             .or_else(|_| self.extract_keywords_small_label(contents))
+            .or_else(|_| self.extract_keywords_index_terms_period(contents))
+            .or_else(|_| self.extract_keywords_headers_index_terms(contents))
     }
 
     pub fn extract_keywords_headers(&self, contents: &str) -> AppResult<Vec<String>> {
@@ -42,6 +45,16 @@ impl KeywordExtractor {
         Ok(keywords)
     }
 
+    pub fn extract_keywords_index_terms_period(&self, contents: &str) -> AppResult<Vec<String>> {
+        debug!("using index terms-. matcher");
+        let index_terms_cap = self.index_terms_dot.captures(contents)
+            .ok_or(AppError::NoKeywords)?;
+        
+        let terms = index_terms_cap.get(1).expect("capture group should be present");
+        let keywords = Self::split_keywords(terms.as_str());
+        Ok(keywords)
+    }
+    
     pub fn extract_keywords_headers_index_terms(&self, contents: &str) -> AppResult<Vec<String>> {
         debug!("using keyword extraction headers (key terms) strategy");
         let keywords_section = self.index_terms.find(&contents).ok_or(AppError::NoKeywords)?;
@@ -74,6 +87,7 @@ impl KeywordExtractor {
         keyword_str
             .split(",")
             .map(|word| word.trim().to_string())
+            // TODO replace all internal newlines as well
             .collect()
     } 
 }
