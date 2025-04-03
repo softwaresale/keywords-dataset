@@ -26,3 +26,9 @@ CREATE TABLE IF NOT EXISTS paper_data (
     content TEXT,
     FOREIGN KEY (arxiv_id) REFERENCES arxiv_metadata(id)
 );
+
+CREATE TABLE IF NOT EXISTS extraction_result (
+    arxiv_id TEXT PRIMARY KEY,
+    status_code VARCHAR(32),
+    status_msg TEXT
+);

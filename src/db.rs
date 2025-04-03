@@ -1,11 +1,12 @@
 pub mod pages;
 
-use crate::err::AppResult;
+use crate::err::{AppError, AppResult};
 use crate::metadata::{ArxivMetadata, ArxivVersion};
 use rusqlite::{named_params, Connection, Transaction};
 use std::path::Path;
 use crate::content::ArxivPaperContent;
 use crate::db::pages::QueryPage;
+use crate::extraction::{ExtractError, ExtractResultRecord};
 
 pub struct ArxivDB {
     conn: Connection,
@@ -89,7 +90,28 @@ impl<'a> ArxivDBQueries<'a> {
         
         Ok(ids)
     }
+    
+    pub fn insert_extraction_result(&self, id: &str, err: Option<ExtractError>) -> AppResult<()> {
+        let record = err
+            .map(ExtractResultRecord::from)
+            .unwrap_or(ExtractResultRecord::success(id));
+        
+        let mut stmt = self.conn.prepare_cached(r"
+        INSERT INTO extraction_result (arxiv_id, status_code, status_msg)
+        VALUES (:arxiv_id, :status_code, :status_msg)
+        ")?;
+        
+        let params = named_params! {
+            ":arxiv_id": record.arxiv_id,
+            ":status_code": record.extract_status,
+            ":status_msg": record.extract_msg
+        };
+        
+        stmt.execute(params)?;
 
+        Ok(())
+    }
+    
     pub fn insert_arxiv_metadata(&self, metadata: ArxivMetadata) -> AppResult<()> {
         let arxiv_id = metadata.id().expect("metadata has null arxiv id");
         self.insert_metadata(&metadata)?;

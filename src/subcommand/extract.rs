@@ -32,6 +32,8 @@ pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
         }
     };
     
+    // execute the DDL and turn off synchronous
+    db.execute_ddl()?;
     db.turn_off_synchronous()?;
 
     let txn = db.txn()?;
@@ -122,10 +124,15 @@ fn process_sample(
         match item {
             Ok(content) => {
                 info!("inserting content for {}", &content.id);
+                // update the status
+                queries.insert_extraction_result(&content.id, None)?;
+                // insert the content
                 queries.update_keywords_and_content(content)?;
             }
             Err(err) => {
                 error!("error while extracting content from {}: {}", err.id(), err.app_err());
+                // just log that we had some kind of error
+                queries.insert_extraction_result("", Some(err))?;
             }
         }
     }

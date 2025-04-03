@@ -80,3 +80,29 @@ impl ExtractError {
 }
 
 pub type ExtractResult<T> = Result<T, ExtractError>;
+
+pub struct ExtractResultRecord {
+    pub arxiv_id: String,
+    pub extract_status: String,
+    pub extract_msg: Option<String>,
+}
+
+impl From<ExtractError> for ExtractResultRecord {
+    fn from(value: ExtractError) -> Self {
+        Self {
+            arxiv_id: value.arxiv_id,
+            extract_status: value.err.extraction_status_code().to_string(),
+            extract_msg: Some(value.err.to_string()),
+        }
+    }
+}
+
+impl ExtractResultRecord {
+    pub fn success<StrT: Into<String>>(id: StrT) -> Self {
+        Self {
+            arxiv_id: id.into(),
+            extract_status: "OK".to_string(),
+            extract_msg: None,
+        }
+    }
+}

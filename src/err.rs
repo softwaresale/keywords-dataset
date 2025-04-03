@@ -29,3 +29,21 @@ pub enum AppError {
 }
 
 pub type AppResult<T> = Result<T, AppError>;
+
+impl AppError {
+    pub fn extraction_status_code(&self) -> &'static str {
+        match self {
+            AppError::IO(_) => "IO",
+            AppError::JsonDeserialization(_) => "JSON_DESER",
+            AppError::PdfError(_) => "PDF",
+            AppError::NoKeywords => "NO_KEYWORDS",
+            AppError::MissingSection(_) => "MISSING_SECTION",
+            AppError::Utf8Error(_) => "UTF8",
+            AppError::DbError(_) => "DB",
+            AppError::NetworkError(_) => "NETWORK",
+            AppError::HttpStatusError(_) => "HTTP_STAT",
+            AppError::NoBucketObject(_) => "NO_GCS_OBJ",
+            AppError::Other(_) => "OTHER"
+        }
+    }
+}
