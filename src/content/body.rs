@@ -12,8 +12,8 @@ impl PaperBodyExtractor {
     pub fn new() -> Self {
         Self {
             intro_header: intro_header_regex_factory(),
-            references_header: Regex::new(r"\n\nR[eE][fF][eE][rR][eE][nN][cC][eE][sS] *\n\n").unwrap(),
-            references_header_permissive: Regex::new(r"\n\n?(.+)R[eE][fF][eE][rR][eE][nN][cC][eE][sS] *\n\n").unwrap(),
+            references_header: Regex::new(r"\n\nR[eE][fF][eE][rR][eE][nN][cC][eE][sS] *\n ?\n").unwrap(),
+            references_header_permissive: Regex::new(r"\n\n?(.+)R[eE][fF][eE][rR][eE][nN][cC][eE][sS] *\n ?\n").unwrap(),
         }
     }
     
@@ -31,7 +31,7 @@ impl PaperBodyExtractor {
         
         let content_end = references_match.start();
         
-        let content = String::from(&content[content_start..content_end]);
+        let content = String::from((&content[content_start..content_end]).trim());
         Ok(content)
     }
 }
