@@ -1,8 +1,11 @@
+pub mod pages;
+
 use crate::err::AppResult;
 use crate::metadata::{ArxivMetadata, ArxivVersion};
 use rusqlite::{named_params, Connection, Transaction};
 use std::path::Path;
 use crate::content::ArxivPaperContent;
+use crate::db::pages::QueryPage;
 
 pub struct ArxivDB {
     conn: Connection,
@@ -19,6 +22,11 @@ impl ArxivDB {
     pub fn execute_ddl(&self) -> AppResult<()> {
         let ddl_query = include_str!("../sql/ddl.sql");
         self.conn.execute_batch(ddl_query)?;
+        Ok(())
+    }
+    
+    pub fn turn_off_synchronous(&self) -> AppResult<()> {
+        self.conn.pragma_update(None, "synchronous", "OFF")?;
         Ok(())
     }
     
@@ -44,11 +52,49 @@ impl<'a> ArxivDBQueries<'a> {
         }
     }
 
+    pub fn count_arxiv_ids(&self) -> AppResult<u64> {
+        let result = self.conn.query_row(
+            "SELECT COUNT(id) FROM arxiv_metadata",
+            [],
+            |row| row.get::<_, u64>(0)
+        )?;
+
+        Ok(result)
+    }
+
+    pub fn select_arxiv_ids(&self, page: QueryPage) -> AppResult<Vec<String>> {
+        let mut stmt = self.conn.prepare("SELECT id FROM arxiv_metadata LIMIT :limit OFFSET :offset")?;
+        let params = named_params! {
+            ":limit": page.limit,
+            ":offset": page.offset,
+        };
+        let ids = stmt
+            .query_map(params, |row| row.get::<_, String>("id"))?
+            .filter_map(|id| id.ok())
+            .collect::<Vec<_>>();
+
+        Ok(ids)
+    }
+    
+    pub fn sample_arxiv_ids(&self, count: u64) -> AppResult<Vec<String>> {
+        let mut stmt = self.conn.prepare(r"
+        SELECT id FROM arxiv_metadata ORDER BY random() LIMIT :limit
+        ")?;
+        
+        let params = named_params! { ":limit": count };
+        
+        let ids = stmt.query_map(params, |row| row.get::<_, String>("id"))?
+            .filter_map(|id| id.ok())
+            .collect::<Vec<_>>();
+        
+        Ok(ids)
+    }
+
     pub fn insert_arxiv_metadata(&self, metadata: ArxivMetadata) -> AppResult<()> {
         let arxiv_id = metadata.id().expect("metadata has null arxiv id");
         self.insert_metadata(&metadata)?;
         self.insert_versions(arxiv_id, metadata.versions())?;
-        
+
         // make a quick content for the abstract
         self.insert_content(arxiv_id, ArxivPaperContent {
             id: "".to_string(),
@@ -56,7 +102,7 @@ impl<'a> ArxivDBQueries<'a> {
             paper_content: String::default(),
             keywords: Vec::default()
         })?;
-        
+
         Ok(())
     }
 
@@ -65,19 +111,36 @@ impl<'a> ArxivDBQueries<'a> {
         INSERT INTO paper_data (arxiv_id, abstract, keywords, content)
         VALUES (:arxiv_id, :abstract, :keywords, :content)
         ")?;
-        
+
         let params = named_params! {
             ":arxiv_id": arxiv_id,
             ":abstract": content.abstract_text,
             ":keywords": content.keywords.join(","),
             ":content": content.paper_content
         };
-        
+
         stmt.execute(params)?;
-        
+
         Ok(())
     }
     
+    pub fn update_keywords_and_content(&self, content: ArxivPaperContent) -> AppResult<()> {
+        let mut stmt = self.conn.prepare_cached(r"
+        UPDATE paper_data
+        SET keywords = :keywords, content = :content
+        WHERE arxiv_id = :arxiv_id
+        ")?;
+        
+        let params = named_params! {
+            ":keywords": content.keywords.join(","),
+            ":content": content.paper_content,
+            ":arxiv_id": content.id
+        };
+        
+        stmt.execute(params)?;
+        Ok(())
+    }
+
     pub fn insert_versions(&self, arxiv_id: &str, metadata: &[ArxivVersion]) -> AppResult<()> {
         let mut stmt = self.conn.prepare_cached(r"
         INSERT INTO arxiv_version(arxiv_id, version, created)

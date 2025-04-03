@@ -1,6 +1,9 @@
 pub mod keyword;
 pub mod header;
+pub mod body;
+mod regexes;
 
+#[derive(Debug)]
 pub struct ArxivPaperContent {
     /// arxiv id to reference later
     pub id: String,
