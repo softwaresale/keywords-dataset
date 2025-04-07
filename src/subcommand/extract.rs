@@ -1,14 +1,14 @@
-use std::ops::Deref;
-use std::sync::{Arc};
 use crate::subcommand::db::DBBaseArgs;
 use clap_derive::Args;
-use log::{debug, error, info};
-use threadpool::ThreadPool;
 use keyword_dataset_rs::content::ArxivPaperContent;
-use keyword_dataset_rs::db::{ArxivDB, ArxivDBQueries};
 use keyword_dataset_rs::db::pages::page_iter;
+use keyword_dataset_rs::db::{ArxivDB, ArxivDBQueries};
 use keyword_dataset_rs::err::AppResult;
 use keyword_dataset_rs::extraction::{ContentExtractor, ExtractResult};
+use log::{debug, error, info};
+use std::ops::Deref;
+use std::sync::Arc;
+use threadpool::ThreadPool;
 
 #[derive(Args, Debug)]
 pub struct ExtractArgs {
@@ -37,7 +37,6 @@ impl ExtractArgs {
 }
 
 pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
-
     let mut db = match ArxivDB::open(&args.db.db) {
         Ok(db) => {
             info!("successfully connected to db {}", args.db.db.display());
@@ -78,12 +77,13 @@ pub fn extract_and_save_contents(args: ExtractArgs) -> AppResult<()> {
             pool,
             total_ids,
             args.unique,
-            args.parallelism()
+            args.parallelism(),
         )?;
     } else {
         process_all(&queries, extractor, pool, total_ids)?;
     }
 
+    info!("starting to commit extraction results...");
     txn.commit()?;
 
     info!("successfully committed transaction to update paper contents");
@@ -95,7 +95,7 @@ fn process_all(
     queries: &ArxivDBQueries,
     extractor: Arc<ContentExtractor>,
     pool: ThreadPool,
-    total_ids: u64
+    total_ids: u64,
 ) -> AppResult<()> {
     for page in page_iter(total_ids, 10) {
         info!("processing page {}", page);
@@ -110,7 +110,7 @@ fn process_all(
                 return Err(err);
             }
         };
-        
+
         let contents = extract_paper_contents(extractor.clone(), &pool, ids)?;
 
         // wait for all content to be extracted
@@ -125,7 +125,11 @@ fn process_all(
                     queries.update_keywords_and_content(content)?;
                 }
                 Err(err) => {
-                    error!("error while extracting content from {}: {}", err.id(), err.app_err());
+                    error!(
+                        "error while extracting content from {}: {}",
+                        err.id(),
+                        err.app_err()
+                    );
                 }
             }
         }
@@ -147,7 +151,7 @@ fn process_sample(
     } else {
         queries.sample_arxiv_ids(sample_size)
     }?;
-    
+
     // process ids in batches
     for batch in ids.chunks(batch_size) {
         let id_batch = batch.to_vec();
@@ -162,7 +166,11 @@ fn process_sample(
                     queries.update_keywords_and_content(content)?;
                 }
                 Err(err) => {
-                    error!("error while extracting content from {}: {}", err.id(), err.app_err());
+                    error!(
+                        "error while extracting content from {}: {}",
+                        err.id(),
+                        err.app_err()
+                    );
                     // just log that we had some kind of error
                     queries.insert_extraction_result("", Some(err))?;
                 }
